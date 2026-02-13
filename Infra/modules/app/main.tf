@@ -77,8 +77,8 @@ resource "aws_lambda_function" "api_lambda" {
   memory_size   = 512
   timeout       = 30
 
-  filename      = "../../../target/MeusCerts-0.0.1-SNAPSHOT.jar"
-  source_code_hash = filebase64sha256("../../../target/MeusCerts-0.0.1-SNAPSHOT.jar")
+  filename      = "../../../target/MeusCerts-${var.app_version}-aws.jar"
+  source_code_hash = filebase64sha256("../../../target/MeusCerts-${var.app_version}-aws.jar")
   publish = true
 
   snap_start {

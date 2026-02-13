@@ -1,0 +1,85 @@
+name: PROD-Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate Next Version
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          release_branches: main
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Update POM Version
+        run: |
+          echo "Próxima Versão Calculada: ${{ steps.tag_version.outputs.new_version }}"
+          mvn versions:set -DnewVersion=${{ steps.tag_version.outputs.new_version }}
+          mvn clean package -DskipTests
+          mv target/MeusCerts-${{ steps.tag_version.outputs.new_version }}-aws.jar target/final-artifact.jar
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+          artifacts: "target/final-artifact.jar"
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: sa-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./Infra/environments/prod
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Apply
+        working-directory: ./Infra/environments/prod
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: sa-east-1
+          TF_VAR_app_version: ${{ steps.tag_version.outputs.new_version }}
+          TF_VAR_r2_access_key: ${{ secrets.TF_VAR_R2_ACCESS_KEY }}
+          TF_VAR_r2_secret_key: ${{ secrets.TF_VAR_R2_SECRET_KEY }}
+          TF_VAR_r2_bucket_name: ${{ vars.TF_VAR_R2_BUCKET_NAME_PROD }}
+          TF_VAR_r2_public_domain: ${{ vars.TF_VAR_R2_PUBLIC_DOMAIN_PROD }}
+          TF_VAR_r2_endpoint: ${{ vars.TF_VAR_R2_ENDPOINT }}
+          TF_VAR_env: "prod"
+        run: |
+          cp ../../../target/final-artifact.jar ../../../target/MeusCerts-${{ steps.tag_version.outputs.new_version }}-aws.jar
+          
+          terraform apply -auto-approve

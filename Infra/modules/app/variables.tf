@@ -1,6 +1,7 @@
 variable "env" {
   description = "Nome do ambiente (uat ou prod)"
 }
+variable "app_version" { type = string }
 variable "aws_region" {
   default = "sa-east-1"
 }
