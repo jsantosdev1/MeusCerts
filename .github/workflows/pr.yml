@@ -1,0 +1,48 @@
+name: Automate Pull Requests
+
+on:
+  push:
+    branches:
+      - 'feature/*'
+      - 'uat'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  create-pr-to-uat:
+    if: startsWith(github.ref, 'refs/heads/feature/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create PR to UAT
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Tenta criar o PR. Se já existir, não falha (|| true)
+          gh pr create \
+            --base uat \
+            --head ${{ github.ref_name }} \
+            --title "Integrar ${{ github.ref_name }} em UAT" \
+            --body "PR automático gerado pelo bot. Merge para disparar deploy em UAT." \
+            || echo "PR já existe ou erro não crítico"
+  create-pr-to-prod:
+    if: github.ref == 'refs/heads/uat'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create PR to Main (Production)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create \
+            --base main \
+            --head uat \
+            --title "🚀 Promoção UAT -> PROD" \
+            --body "Deploy UAT concluído. Aprove este PR para enviar para Produção." \
+            || echo "PR já existe"
