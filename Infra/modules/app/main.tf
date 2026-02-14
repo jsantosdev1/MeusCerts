@@ -75,8 +75,7 @@ resource "aws_lambda_function" "api_lambda" {
   handler       = "org.springframework.cloud.function.adapter.aws.FunctionInvoker"
   runtime       = "java21"
   memory_size   = 512
-  timeout       = 30
-
+  timeouts { create = "20m"update = "20m" }
   filename      = "../../../target/MeusCerts-${var.app_version}-aws.jar"
   source_code_hash = filebase64sha256("../../../target/MeusCerts-${var.app_version}-aws.jar")
   publish = true
