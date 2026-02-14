@@ -82,9 +82,9 @@ resource "aws_lambda_function" "api_lambda" {
   filename      = "../../../target/MeusCerts-${var.app_version}-aws.jar"
   source_code_hash = filebase64sha256("../../../target/MeusCerts-${var.app_version}-aws.jar")
   publish = true
-
+  timeout = 30
   snap_start {
-    apply_on = "None"
+    apply_on = "PublishedVersions"
   }
 
   environment {
