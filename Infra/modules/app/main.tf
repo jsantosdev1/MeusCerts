@@ -84,7 +84,7 @@ resource "aws_lambda_function" "api_lambda" {
   publish = true
 
   snap_start {
-    apply_on = "none"
+    apply_on = "None"
   }
 
   environment {
